@@ -1,0 +1,15 @@
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+.DS_Store
+app/src/main/assets/www/dictionary-data.js
+app/src/main/assets/www/dictionary.json
+*.apk
+*.ap_
+*.dex
+*.class
+.cxx/
+captures/
