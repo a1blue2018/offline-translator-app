@@ -1,0 +1,74 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Pack offline dictionary into the app
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          parts = sorted(Path("dictionary").glob("part-*.json"))
+          if not parts:
+              raise SystemExit("missing dictionary/part-*.json")
+          words = []
+          for part in parts:
+              words.extend(json.loads(part.read_text(encoding="utf-8")))
+          out = Path("app/src/main/assets/www/dictionary-data.js")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(
+              "window.__ORDBOK_DATA__=" + json.dumps(words, ensure_ascii=False, separators=(",", ":")) + ";\n",
+              encoding="utf-8",
+          )
+          print(f"packed {len(words)} words into {out}")
+          PY
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build release APK
+        run: gradle assembleRelease --no-daemon
+
+      - name: Name the APK Ordbok.apk
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/Ordbok.apk
+          ls -lh dist/Ordbok.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ordbok.apk
+          path: dist/Ordbok.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.1
+          name: Ordbok 1.1
+          body: |
+            Offline Norwegian ↔ English word dictionary for Android.
+
+            Install **Ordbok.apk** on the phone (rename if it downloads as `.apk.zip`).
+            Search `hei` — you should see `hi`. No internet needed.
+          files: dist/Ordbok.apk
+          fail_on_unmatched_files: true
