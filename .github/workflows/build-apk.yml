@@ -21,9 +21,6 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - name: Rebuild app.js from parts
-        run: cat app/src/main/assets/www/app.js.part* > app/src/main/assets/www/app.js
-
       - name: Download dictionary sources
         run: |
           mkdir -p dict-src

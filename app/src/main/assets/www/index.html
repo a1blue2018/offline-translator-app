@@ -5,11 +5,129 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
     <meta name="theme-color" content="#234037" />
     <title>Ordbok</title>
-    <link rel="stylesheet" href="./app.css" />
+    <style>
+      :root {
+        --bg: #f3eee4;
+        --surface: #faf7f1;
+        --chip: #e7e0d4;
+        --fg: #1c1917;
+        --muted: #6b645c;
+        --primary: #234037;
+        --primary-fg: #f3eee4;
+        --danger: #8f2d2d;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { background: var(--bg); color: var(--fg); min-height: 100dvh; }
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        line-height: 1.45;
+      }
+      header {
+        position: sticky; top: 0; z-index: 2;
+        background: color-mix(in srgb, var(--bg) 92%, transparent);
+        backdrop-filter: blur(8px);
+        padding: max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem;
+        border-bottom: 1px solid #1c19171f;
+      }
+      h1 { font-family: Georgia, "Palatino Linotype", serif; font-size: 1.6rem; letter-spacing: -0.03em; }
+      .sub { color: var(--muted); font-size: 0.85rem; margin-top: 0.15rem; }
+      main { padding: 1rem 1rem max(1.5rem, env(safe-area-inset-bottom)); max-width: 32rem; margin: 0 auto; }
+      .search {
+        display: flex; align-items: center; gap: 0.5rem;
+        background: var(--surface); border-radius: 16px;
+        padding: 0.7rem 0.9rem; box-shadow: 0 0 0 1px #1c191714;
+      }
+      .search input {
+        flex: 1; border: 0; background: transparent; font-size: 1.05rem; outline: none; min-width: 0;
+      }
+      .toggle { display: flex; gap: 0.4rem; margin: 0.85rem 0 1rem; }
+      .toggle button {
+        border: 0; background: var(--chip); color: var(--fg);
+        border-radius: 999px; padding: 0.4rem 0.85rem; font-weight: 600; font-size: 0.85rem;
+      }
+      .toggle button.on { background: var(--primary); color: var(--primary-fg); }
+      .card {
+        background: var(--surface); border-radius: 16px; padding: 0.9rem 1rem;
+        box-shadow: 0 0 0 1px #1c191714; margin-bottom: 0.65rem;
+      }
+      .word { font-family: Georgia, serif; font-size: 1.35rem; }
+      .meta { color: var(--muted); font-size: 0.78rem; margin-top: 0.15rem; }
+      .trans { margin-top: 0.35rem; font-size: 1.02rem; }
+      .err { color: var(--danger); }
+      .hint { color: var(--muted); font-size: 0.9rem; padding: 1.2rem 0.2rem; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <header>
+      <h1>Ordbok</h1>
+      <p class="sub">Norsk \u2194 English \u00b7 offline words</p>
+    </header>
+    <main>
+      <div class="search">
+        <input id="q" type="search" enterkeyhint="search" placeholder="S\u00f8k et ord\u2026" autocomplete="off" autocapitalize="off" />
+      </div>
+      <div class="toggle">
+        <button id="nb" class="on" type="button">Norsk \u2192 English</button>
+        <button id="en" type="button">English \u2192 Norsk</button>
+      </div>
+      <div id="out"></div>
+    </main>
     <script src="./dictionary-data.js"></script>
-    <script src="./app.js"></script>
+    <script>
+      const out = document.getElementById("out");
+      const input = document.getElementById("q");
+      const btnNb = document.getElementById("nb");
+      const btnEn = document.getElementById("en");
+      let src = "nb";
+      let words = [];
+
+      function norm(s) {
+        return (s || "").toLowerCase().replace(/[\u2019']/g, "'").trim();
+      }
+      function posLabel(p) {
+        return ({ n: "noun", v: "verb", adj: "adj", adv: "adv", prep: "prep", pron: "pron", intj: "intj", conj: "conj", det: "det", num: "num", art: "art" })[p] || p;
+      }
+      function load() {
+        const data = window.__ORDBOK_DATA__;
+        if (!Array.isArray(data) || !data.length) {
+          out.innerHTML = '<p class="hint err">Word list is missing. Reinstall from GitHub Releases.</p>';
+          return;
+        }
+        words = data;
+        out.innerHTML = '<p class="hint">' + data.length.toLocaleString() + " words ready. Try hei, takk, hus.</p>";
+      }
+      function render(hits) {
+        if (!hits.length) {
+          out.innerHTML = '<p class="hint">No match.</p>';
+          return;
+        }
+        out.innerHTML = hits.map((e) => {
+          const ipa = e.ipa ? " \u00b7 " + e.ipa : "";
+          return '<article class="card"><div class="word">' + e.w + '</div><div class="meta">' + posLabel(e.p) + ipa + '</div><div class="trans">' + (e.t || []).join(" \u00b7 ") + "</div></article>";
+        }).join("");
+      }
+      function search() {
+        const q = norm(input.value);
+        if (!q) {
+          out.innerHTML = '<p class="hint">' + words.length.toLocaleString() + " words ready.</p>";
+          return;
+        }
+        const exact = [];
+        const prefix = [];
+        for (const e of words) {
+          if (e.src !== src) continue;
+          const w = norm(e.w);
+          if (w === q) exact.push(e);
+          else if (w.startsWith(q)) prefix.push(e);
+          if (exact.length + prefix.length >= 40) break;
+        }
+        render(exact.concat(prefix).slice(0, 30));
+      }
+      btnNb.onclick = () => { src = "nb"; btnNb.classList.add("on"); btnEn.classList.remove("on"); search(); };
+      btnEn.onclick = () => { src = "en"; btnEn.classList.add("on"); btnNb.classList.remove("on"); search(); };
+      input.addEventListener("input", search);
+      load();
+      input.focus();
+    </script>
   </body>
 </html>
