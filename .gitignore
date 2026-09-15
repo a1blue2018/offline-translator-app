@@ -5,8 +5,10 @@ local.properties
 *.iml
 .idea/
 .DS_Store
+dict-src/
 app/src/main/assets/www/dictionary-data.js
 app/src/main/assets/www/dictionary.json
+app/src/main/assets/www/app.js
 *.apk
 *.ap_
 *.dex

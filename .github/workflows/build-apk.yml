@@ -21,25 +21,21 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - name: Pack offline dictionary into the app
+      - name: Rebuild app.js from parts
+        run: cat app/src/main/assets/www/app.js.part* > app/src/main/assets/www/app.js
+
+      - name: Download dictionary sources
         run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          parts = sorted(Path("dictionary").glob("part-*.json"))
-          if not parts:
-              raise SystemExit("missing dictionary/part-*.json")
-          words = []
-          for part in parts:
-              words.extend(json.loads(part.read_text(encoding="utf-8")))
-          out = Path("app/src/main/assets/www/dictionary-data.js")
-          out.parent.mkdir(parents=True, exist_ok=True)
-          out.write_text(
-              "window.__ORDBOK_DATA__=" + json.dumps(words, ensure_ascii=False, separators=(",", ":")) + ";\n",
-              encoding="utf-8",
-          )
-          print(f"packed {len(words)} words into {out}")
-          PY
+          mkdir -p dict-src
+          curl -L --fail -o dict-src/nb.jsonl.gz "https://kaikki.org/dictionary/Norwegian%20Bokm%C3%A5l/kaikki.org-dictionary-NorwegianBokm%C3%A5l.jsonl.gz"
+          gunzip -f dict-src/nb.jsonl.gz
+          curl -L --fail -o dict-src/no_50k.txt "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/no/no_50k.txt"
+          curl -L --fail -o dict-src/en_50k.txt "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_50k.txt"
+          curl -L --fail -o dict-src/eng-nor.src.tar.xz "https://download.freedict.org/dictionaries/eng-nor/2025.11.23/freedict-eng-nor-2025.11.23.src.tar.xz"
+          tar -xJf dict-src/eng-nor.src.tar.xz -C dict-src
+
+      - name: Build offline word list
+        run: python3 scripts/build-dictionary.py
 
       - uses: gradle/actions/setup-gradle@v4
         with:
