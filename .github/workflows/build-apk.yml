@@ -26,12 +26,11 @@ jobs:
           SM=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | tail -n1)
           yes | "$SM" --licenses >/dev/null || true
           "$SM" "platforms;android-34" "build-tools;34.0.0"
+      
       - name: Verify dictionary-data.js exists
         run: ls -lh app/src/main/assets/www/dictionary-data.js
       
-      - name: Build offline word list
-        run: python3 scripts/build-dictionary.py
-
+      
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
